@@ -2,7 +2,7 @@
 #
 readonly IMAGE_PATH=/tmp/imagesearch
 readonly AMI_PATH=/tmp/ami
-readonly PROJECT_NAME="project" #
+readonly PROJECT_NAME="project" #main name of AMIs,must follow a similar syntax of this: project-backend-staging01172020
 AWS=~/.local/bin/aws
 INSTANCE_NAME=$($AWS ec2 describe-instances --instance-ids $(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id) --query 'Reservations[*].Instances[*].Tags[?Key == `Name`].Value' | sed 's/[[:space:]]//g; s/\[//g; s/\]//g; s/"//g' | grep '[^\s]')
 IMAGE_PREFIX="$INSTANCE_NAME-"
