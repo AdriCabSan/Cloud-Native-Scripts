@@ -1,8 +1,14 @@
 #/bin/bash
-#
+######
+#script to erase the images and snapshots 3 days older
+#main name of AMIs in your aws account,must follow a syntax like this example: project-backend-stagingdate
+#so that grep 
+#date must be in mmddYY format:project-backend-staging25052020
+######
 readonly IMAGE_PATH=/tmp/imagesearch
 readonly AMI_PATH=/tmp/ami
-readonly PROJECT_NAME="project" #main name of AMIs,must follow a similar syntax of this: project-backend-staging01172020
+readonly PROJECT_NAME="project"
+readonly DAYS_LIMIT="3"
 AWS=~/.local/bin/aws
 INSTANCE_NAME=$($AWS ec2 describe-instances --instance-ids $(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id) --query 'Reservations[*].Instances[*].Tags[?Key == `Name`].Value' | sed 's/[[:space:]]//g; s/\[//g; s/\]//g; s/"//g' | grep '[^\s]')
 IMAGE_PREFIX="$INSTANCE_NAME-"
@@ -11,7 +17,7 @@ AMIS=$(cat $IMAGE_PATH | grep -i $PROJECT_NAME | sed "s/[[:space:]]//g; s/,//g; 
 
 while IFS= read -r LINE || [ -n "$LINE" ]; do
 
-        DATE_LIMIT=$(date +'%m%d%Y' -d "-1 days")
+        DATE_LIMIT=$(date +'%m%d%Y' -d "-$DAYS_LIMIT days")
         IMAGE_NAME="$IMAGE_PREFIX""$DATE_LIMIT"
         OLD_AMI_DATE=$(echo $LINE | awk '{print $4}' FS="-")
         OLDER_AMI_NAME="$IMAGE_PREFIX""$OLD_AMI_DATE"
