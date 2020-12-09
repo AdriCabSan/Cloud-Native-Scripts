@@ -1,18 +1,35 @@
-#!/bin/bash
 ###########################################################################################
-#                                                                                         #
-#This script compresses all files by month in by monthly labeled zip files & removes them #
-#prior to latest month in the logs directory                                              #
-#Example: sh zip-by-month logs/folder/path logPrefixname                                  #
-#works with log files like these: logPrefixname-2020-10-16-3.log                          #
-#                                                                                         #
+#                                                                                          #
+# This script compresses all files by month in by monthly labeled zip files & removes them #
+# prior to latest month in the logs directory,then zip files are send to a s3 bucket       #
+                                                                                           #
+# Example: sh zip-by-month logs/folder/path logPrefixname S3BucketName environment         #
+                                                                                           #
+# works with log files like these: logPrefixname-2020-10-16-3.log                          #
+# environment examples: DEV,QA,DEMO/STAGING/UAT PRODUCTION                                 #
+                                                                                           #
 ###########################################################################################
+
 logprint() { echo "$(date +"%T.%3N"): $*" >> $LOGFILE; }
+
+isOutputEmpty(){
+if [ -z "$*" ]; then
+    logprint "no new zip files to sync"
+else
+    logprint "synced files: $*"
+fi
+}
+
 LOGPATH=$1
 LOGNAME=$2
+S3_BUCKET_NAME=$3
+ENVIRONMENT=$4
 LOGDIR=/var/log/zippedLogs/
 LOGDATE=$(date +'%Y%m%d')
-LOGFILE="$LOGDIR""$LOGNAME-zipped_logs-$LOGDATE.log"
+LOGFILE="$LOGDIR""$2-zipped_logs$LOGDATE.log"
+
+S3_PATH="s3://$S3_BUCKET_NAME/$ENVIRONMENT/$LOGNAME"
+AWS=~/.local/bin/aws #this command is due to to python aws cli installation
 
 mkdir -p $LOGDIR
 :>>$LOGFILE
@@ -28,6 +45,7 @@ BEGGINING_DATE_PATH=$(cat $SELECTED_DATES | head -qn1  2>/dev/null)
 LAST_DATE_PATH=$(cat $SELECTED_DATES | tail -qn1  2>/dev/null)
 FIRST_DATE=$(date -d $BEGGINING_DATE_PATH "+%Y-%m")
 LAST_DATE=$(date -d $LAST_DATE_PATH "+%Y-%m")
+
 logprint "LAST DATE FROM $LOGNAME-LOGS: $LAST_DATE"
 
 while IFS='' read -r LINE || [ -n "${LINE}" ]; do
@@ -43,6 +61,8 @@ while IFS='' read -r LINE || [ -n "${LINE}" ]; do
         zip -r $ZIPNAME $LINE && logprint "\n-------\n" && rm -rf $LINE || echo "File was not compressed"       
     fi
 done < $SELECTED_FILES
+
+isOutputEmpty $($AWS s3 sync $LOGPATH $S3_PATH --sse AES256 --exclude "*.log")
 
 rm $SELECTED_FILES
 rm $SELECTED_DATES
